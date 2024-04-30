@@ -22,6 +22,7 @@ import io.activej.cube.CubeState;
 import io.activej.cube.aggregation.IAggregationChunkStorage;
 import io.activej.cube.aggregation.ProtoAggregationChunk;
 import io.activej.cube.aggregation.ot.ProtoAggregationDiff;
+import io.activej.cube.etcd.EtcdUtils;
 import io.activej.cube.exception.CubeException;
 import io.activej.cube.ot.CubeDiff;
 import io.activej.cube.ot.ProtoCubeDiff;
@@ -175,6 +176,13 @@ public final class CubeLogProcessorController extends AbstractReactive
 					.then(protoDiffs -> chunkStorage.finish(addedProtoChunks(protoDiffs))
 						.mapException(e -> new CubeException("Failed to finalize chunks in storage", e))
 						.then(chunkIds -> stateManager.push(materializeProtoDiff(protoDiffs, chunkIds))
+							.whenException(e -> {
+								if (EtcdUtils.transactionMayPassed(e)) return;
+
+								Set<Long> chunks = Set.copyOf(chunkIds.values());
+								logger.trace("Transaction rejected, deleting new chunks {}", chunks, e);
+								chunkStorage.deleteChunks(chunks);
+							})
 							.mapException(e -> new CubeException("Failed to synchronize state after log processing, resetting", e)))
 						.map($ -> true));
 			})

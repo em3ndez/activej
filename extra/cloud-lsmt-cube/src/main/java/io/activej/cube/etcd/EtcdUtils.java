@@ -14,9 +14,12 @@ import io.activej.etcd.codec.prefix.Prefix;
 import io.activej.etcd.codec.value.EtcdValueCodec;
 import io.activej.etcd.codec.value.EtcdValueCodecs;
 import io.activej.etcd.exception.MalformedEtcdDataException;
+import io.activej.etcd.exception.TransactionNotSucceededException;
 import io.activej.etl.LogDiff;
 import io.activej.etl.LogPositionDiff;
 import io.etcd.jetcd.ByteSequence;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -86,5 +89,18 @@ public final class EtcdUtils {
 			return byteSequenceFrom(key.toString());
 		}
 	};
+
+	public static boolean transactionMayPassed(Exception e) {
+		if (e instanceof TransactionNotSucceededException) return false;
+		if (e instanceof StatusRuntimeException statusException) {
+			Status status = statusException.getStatus();
+			return status != Status.PERMISSION_DENIED &&
+				   status != Status.INVALID_ARGUMENT &&
+				   status != Status.FAILED_PRECONDITION &&
+				   status != Status.UNIMPLEMENTED &&
+				   status != Status.UNAUTHENTICATED;
+		}
+		return true;
+	}
 
 }

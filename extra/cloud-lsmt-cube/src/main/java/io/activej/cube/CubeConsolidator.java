@@ -23,6 +23,7 @@ import io.activej.cube.aggregation.ChunksAlreadyLockedException;
 import io.activej.cube.aggregation.IChunkLocker;
 import io.activej.cube.aggregation.NoOpChunkLocker;
 import io.activej.cube.aggregation.ot.ProtoAggregationDiff;
+import io.activej.cube.etcd.EtcdUtils;
 import io.activej.cube.exception.CubeException;
 import io.activej.cube.ot.CubeDiff;
 import io.activej.cube.ot.ProtoCubeDiff;
@@ -176,6 +177,13 @@ public final class CubeConsolidator extends AbstractReactive
 			.then(chunkIds -> {
 				CubeDiff cubeDiff = materializeProtoDiff(protoCubeDiff, chunkIds);
 				return stateManager.push(List.of(LogDiff.forCurrentPosition(cubeDiff)))
+					.whenException(e -> {
+						if (EtcdUtils.transactionMayPassed(e)) return;
+
+						Set<Long> chunks = Set.copyOf(chunkIds.values());
+						logger.trace("Transaction rejected, deleting new chunks {}", chunks, e);
+						executor.getAggregationChunkStorage().deleteChunks(chunks);
+					})
 					.mapException(e -> new CubeException("Failed to synchronize state after consolidation, resetting", e))
 					.map($ -> cubeDiff);
 			});
