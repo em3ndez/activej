@@ -443,8 +443,9 @@ public final class CubeCleanerService extends AbstractReactive
 	}
 
 	private Promise<Set<Long>> collectStalledChunks(long revision) {
+		ByteSequence prefix = root.concat(prefixChunk);
 		return Promise.ofCompletionStage(client.getKVClient().get(
-					root.concat(prefixChunk),
+					prefix,
 					GetOption.builder().isPrefix(true).withRevision(revision).build())
 				.exceptionallyCompose(EtcdUtils::convertStatusExceptionStage))
 			.then((getResponse, e) -> {
@@ -454,7 +455,9 @@ public final class CubeCleanerService extends AbstractReactive
 							List<KeyValue> kvs = getResponse.getKvs();
 							Set<Long> stalledChunkIds = new HashSet<>(chunks);
 							for (KeyValue kv : kvs) {
-								stalledChunkIds.remove(chunkIdCodec.decodeKey(kv.getKey()));
+								ByteSequence chunkKey = kv.getKey().substring(prefix.size());
+								ByteSequence suffix = aggregationIdCodec.decodePrefix(chunkKey).suffix();
+								stalledChunkIds.remove(chunkIdCodec.decodeKey(suffix));
 							}
 							return stalledChunkIds;
 						});
