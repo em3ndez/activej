@@ -392,6 +392,7 @@ public final class CubeCleanerService extends AbstractReactive
 
 					long timestamp = timestampRef.get();
 					if (timestamp == -1) {
+						if (deletedChunks.isEmpty()) return;
 						logger.warn("No transaction timestamp found, skip deleting chunks {}", deletedChunks);
 						return;
 					}
