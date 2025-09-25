@@ -36,8 +36,8 @@ import org.objectweb.asm.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
 import java.lang.reflect.*;
+import java.lang.reflect.Type;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -1017,7 +1017,7 @@ public final class SerializerFactory {
 
 		@Override
 		public String toString() {
-			return member.getClass().getSimpleName() + " " + getName();
+			return member.getDeclaringClass().getSimpleName() + " " + getName();
 		}
 	}
 
