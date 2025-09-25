@@ -46,8 +46,8 @@ import java.util.function.Function;
 
 import static io.activej.codegen.expression.Expressions.*;
 import static io.activej.serializer.def.SerializerDef.*;
-import static io.activej.serializer.def.SerializerExpressions.readByte;
-import static io.activej.serializer.def.SerializerExpressions.writeByte;
+import static io.activej.serializer.def.SerializerExpressions.readVarInt;
+import static io.activej.serializer.def.SerializerExpressions.writeVarInt;
 import static io.activej.types.AnnotatedTypes.*;
 import static io.activej.types.Utils.getAnnotation;
 import static io.activej.types.Utils.hasAnnotation;
@@ -546,7 +546,7 @@ public final class SerializerFactory {
 	private Expression encoderImpl(SerializerDef serializer, @Nullable Integer encodeVersion, StaticEncoders staticEncoders, Expression buf, Variable pos, Variable data) {
 		return sequence(
 			encodeVersion != null ?
-				writeByte(buf, pos, value((byte) (int) encodeVersion)) :
+				writeVarInt(buf, pos, value(encodeVersion)) :
 				voidExp(),
 
 			serializer.encode(staticEncoders,
@@ -571,13 +571,13 @@ public final class SerializerFactory {
 
 		classGenerator.withMethod("decodeEarlierVersions",
 			serializer.getDecodeType(),
-			List.of(BinaryInput.class, byte.class),
+			List.of(BinaryInput.class, int.class),
 			() -> {
 				List<Expression> listKey = new ArrayList<>();
 				List<Expression> listValue = new ArrayList<>();
 				for (int i = decodeVersions.size() - 2; i >= 0; i--) {
 					int version = decodeVersions.get(i);
-					listKey.add(value((byte) version));
+					listKey.add(value(version));
 					listValue.add(call(self(), "decodeVersion" + version, arg(0)));
 				}
 				Expression result = throwException(CorruptedDataException.class,
@@ -607,8 +607,8 @@ public final class SerializerFactory {
 				0,
 				compatibilityLevel) :
 
-			let(readByte(in),
-				version -> ifEq(version, value((byte) (int) latestVersion),
+			let(readVarInt(in),
+				version -> ifEq(version, value(latestVersion),
 					serializer.decode(
 						staticDecoders,
 						in,
